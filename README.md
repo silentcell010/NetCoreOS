@@ -62,8 +62,8 @@ Ever needed a full router/switch/firewall for a lab, a homelab, or a teaching en
 Download the ISO from [Releases](../../releases), verify it against the published SHA256, and flash it:
 
 ```bash
-sha256sum netcoreos-0.1-beta.iso   # compare against the checksum on the release page
-sudo dd if=netcoreos-0.1-beta.iso of=/dev/sdX bs=4M status=progress oflag=sync
+sha256sum netcoreos-trixie-amd64.iso   # compare against the checksum on the release page
+sudo dd if=netcoreos-trixie-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
 (or use [Balena Etcher](https://etcher.balena.io/) if you prefer a GUI). Replace `/dev/sdX` with your actual USB device — double-check with `lsblk` first, `dd` does not ask twice. Then jump to [First boot](#first-boot).
