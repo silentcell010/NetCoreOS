@@ -1,219 +1,163 @@
-NetCoreOS
+# NetCoreOS
 
 A network operating system CLI, packaged as a bootable Debian Live ISO.
 
 Boot a spare PC, VM, or USB stick straight into a switch/router/firewall command shell — no desktop, no distro setup. VLANs, L3 routing (OSPF, BGP, VRRP via FRR), a stateful firewall, DHCP (v4/v6), and VXLAN/GRE/WireGuard/IPsec tunnels, all from one CLI — plus an optional browser control panel.
 
-"Version" (https://img.shields.io/badge/version-0.1--beta-orange)
-"Platform" (https://img.shields.io/badge/platform-Debian%20Live-blue)
-"License" (https://img.shields.io/badge/license-MIT-lightgrey)
-"Status" (https://img.shields.io/badge/status-beta-red)
-
-«⚠️ Beta software. Test any config change — especially firewall/ACL rules — on a spare TTY before relying on it in production. See "Security notes" (#security-notes) below.»
+> ⚠️ Beta software. Test any config change — especially firewall/ACL rules — on a spare TTY before relying on it in production. See [Security notes](#security-notes) below.
 
 ---
 
-Table of contents
+## Table of contents
 
-- "Why NetCoreOS" (#why-netcoreos)
-- "Features" (#features)
-- "What's in this repo" (#whats-in-this-repo)
-- "Quick start" (#quick-start)
-- "First boot" (#first-boot)
-- "Persistence (save config across reboots)" (#persistence-save-config-across-reboots)
-- "CLI overview" (#cli-overview)
-- "Security notes" (#security-notes)
-- "Roadmap" (#roadmap)
-- "Contributing" (#contributing)
-- "License" (#license)
+- [Why NetCoreOS](#why-netcoreos)
+- [Features](#features)
+- [What's in this repo](#whats-in-this-repo)
+- [Quick start](#quick-start)
+- [First boot](#first-boot)
+- [Persistence (save config across reboots)](#persistence-save-config-across-reboots)
+- [CLI overview](#cli-overview)
+- [Security notes](#security-notes)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
-Why NetCoreOS
+## Why NetCoreOS
 
-Ever needed a full router/switch/firewall for a lab, a homelab, or a teaching environment — without buying hardware or wrestling with raw "iproute2"/"nftables"/FRR configs by hand?
+Ever needed a full router/switch/firewall for a lab, a homelab, or a teaching environment — without buying hardware or wrestling with raw iproute2/nftables/FRR configs by hand? NetCoreOS wraps all of that behind a single, familiar, Cisco-like command shell that boots directly on commodity x86 hardware or in any VM.
 
-NetCoreOS wraps all of that behind a single, familiar, Cisco-like command shell that boots directly on commodity x86 hardware or in any VM.
+## Features
 
-The operating system and its runtime components are distributed primarily through the bootable NetCoreOS ISO.
+| Area | What you get |
+|---|---|
+| Switching | VLANs, STP, port security, L2 switch mode |
+| Routing | OSPF, BGP, static routing, route-maps, prefix-lists, BFD, RPKI, VRF |
+| High availability | VRRP |
+| Firewall / NAT | ACLs, port forwarding, port/IP blocking |
+| DHCP | IPv4 and IPv6 |
+| Tunnels | VXLAN, GRE, WireGuard, IPsec |
+| Operations | show running-config, show tech-support, live dashboard, config backup/restore, command scheduling, bandwidth testing |
+| Management | CLI over console/SSH, optional web UI (`web` command) |
 
-Features
+## What's in this repo
 
-Area| What you get
-Switching| VLANs, STP, port security, L2 switch mode
-Routing| OSPF, BGP, static routing, route-maps, prefix-lists, BFD, RPKI, VRF
-High availability| VRRP
-Firewall / NAT| ACLs, port forwarding, port/IP blocking
-DHCP| IPv4 and IPv6
-Tunnels| VXLAN, GRE, WireGuard, IPsec
-Operations| "show running-config", "show tech-support", live "dashboard", config backup/restore, command scheduling, bandwidth testing
-Management| CLI over console/SSH, optional web UI ("web" command)
+| File | Purpose |
+|---|---|
+| `build-netcoreos-iso.sh` | Builds the bootable `.iso` from a local Debian package repo |
+| `setup-persistence.sh` | Prepares a USB partition so config survives a reboot |
 
-What's in this repo
+> 🔒 **`netcoreos.sh` (the CLI/OS itself) and `netcoreos_webui.py` (the web UI) are not published in this repository.** They ship pre-installed inside the released ISO (see [Releases](../../releases)) — this repo only contains the tooling used to build and package that ISO, not the OS source itself.
 
-The repository contains the public build, configuration, and distribution components of NetCoreOS.
+> 📦 You don't need to build anything to use NetCoreOS. A prebuilt ISO is published under [Releases](../../releases) — download it and skip straight to [First boot](#first-boot). Building from source is only needed if you want to modify the ISO packaging yourself, and requires you to already have local copies of `netcoreos.sh` and `netcoreos_webui.py`, since they aren't distributed here.
 
-The main NetCoreOS CLI and optional Web UI are bundled inside the released ISO rather than being distributed as standalone source files in this repository.
+## Quick start
 
-Component| Purpose
-"build-netcoreos-iso.sh"| Builds the bootable NetCoreOS ".iso" from the required local Debian package repository and bundled system components
-"setup-persistence.sh"| Prepares a USB partition so NetCoreOS configuration can survive reboots
-"LICENSE"| MIT license
+### Option A — just use it (recommended)
 
-«📦 You don't need to build anything to use NetCoreOS. A prebuilt ISO is published under "Releases" (../../releases). Download it and skip straight to "First boot" (#first-boot).
+Download the ISO from [Releases](../../releases), verify it against the published SHA256, and flash it:
 
-The NetCoreOS CLI and optional Web UI are included inside the ISO and are not provided as standalone files in this repository.»
-
-Quick start
-
-Option A — just use it (recommended)
-
-Download the ISO from "Releases" (../../releases), verify it against the published SHA256, and flash it:
-
-sha256sum netcoreos-trixie-amd64.iso
-
-Compare the result against the checksum published on the release page.
-
-Then write the ISO to a USB device:
-
+```bash
+sha256sum netcoreos-trixie-amd64.iso   # compare against the checksum on the release page
 sudo dd if=netcoreos-trixie-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```
 
-«⚠️ Replace "/dev/sdX" with your actual USB device. Double-check the device with "lsblk" first — "dd" does not ask twice.»
+(or use Balena Etcher if you prefer a GUI). Replace `/dev/sdX` with your actual USB device — double-check with `lsblk` first, `dd` does not ask twice. Then jump to [First boot](#first-boot).
 
-Alternatively, use a graphical USB imaging tool such as "Balena Etcher" (https://etcher.balena.io/) if you prefer.
+### Option B — build the ISO yourself
 
-After flashing the ISO, continue to "First boot" (#first-boot).
+`build-netcoreos-iso.sh` builds fully offline: it does not fetch packages from an online apt mirror. Instead it expects a local folder of `.deb` files (Debian trixie, amd64) and builds a local package repo from them with `apt-ftparchive` before running `debootstrap` against it.
 
-Option B — build it yourself
+Since `netcoreos.sh` and `netcoreos_webui.py` aren't part of this repo, you'll also need your own local copies of both files, placed where the script expects them (see the top of `build-netcoreos-iso.sh`), before it can bake them into the rootfs. In practice this means:
 
-"build-netcoreos-iso.sh" is intended for building the NetCoreOS bootable ISO from the required local Debian packages and the components included by the build system.
+- You (or a script) must manually download every required `.deb` package — including transitive dependencies — and place them in the local repo folder the script expects (see `LOCAL_REPO` near the top of the script).
+- Plain `apt install <package>` on the build machine is not enough on its own — that installs packages for the build host, it doesn't populate the local repo the ISO's rootfs is built from. You need the actual `.deb` files sitting in that folder.
+- A convenient way to collect them (on a Debian trixie/amd64 machine with internet access) is `apt-get install --download-only` or `apt-get download <pkg>` for the full package list, or mirroring tools like `apt-mirror`/`debmirror` — check the package list near the top of `build-netcoreos-iso.sh` for exactly what's needed.
 
-The build process is designed to work from a local package repository rather than relying on an online apt mirror during the ISO build.
+Once the local repo is populated (and `netcoreos.sh` / `netcoreos_webui.py` are in place):
 
-You must provide the required Debian ".deb" packages, including their dependencies, in the local repository expected by the build script.
-
-On a Debian trixie/amd64 build machine with internet access, packages can be collected using tools such as:
-
-apt-get install --download-only <package>
-
-or:
-
-apt-get download <package>
-
-After the local package repository has been populated, run:
-
+```bash
 sudo bash build-netcoreos-iso.sh
+```
 
-The resulting ISO can then be written to a USB device or used directly in a VM.
+This debootstraps a minimal rootfs from that local repo, installs `netcoreos.sh` and `netcoreos_webui.py` into it, configures auto-login and SSH, and produces a bootable hybrid (BIOS + EFI) ISO.
 
-«Note: The standalone "netcoreos.sh" and "netcoreos_webui.py" files are not required to be present in the repository checkout. The released ISO contains the runtime components needed to operate NetCoreOS.»
-
-First boot
+## First boot
 
 - Console (tty1–tty6) auto-logs in and drops straight into the NetCoreOS CLI — no Linux login prompt, just the NCOS password.
-- SSH is enabled; log in as "root".
-- Default password (both NCOS and Linux/SSH): "ncos". This is the same password for both, by design — one thing to remember. Change it immediately:
+- SSH is enabled; log in as `root`.
+- Default password (both NCOS and Linux/SSH): `ncos`. This is the same password for both, by design — one thing to remember. Change it immediately:
 
+```
 change password
+```
 
 By default, this is a live, non-persistent session: a reboot wipes everything. See the next section to make changes stick.
 
-Persistence (save config across reboots)
+## Persistence (save config across reboots)
 
-Prepare the USB device with:
+```bash
+sudo bash setup-persistence.sh /dev/sdX   # the USB device, not a partition
+```
 
-sudo bash setup-persistence.sh /dev/sdX
+Then boot the "NetCoreOS — Persistent Mode" entry from the GRUB menu. Inside the CLI, save what should re-apply on every boot:
 
-«Use the USB device, not an individual partition.»
-
-Then boot the "NetCoreOS — Persistent Mode" entry from the GRUB menu.
-
-Inside the CLI, save what should be re-applied on every boot:
-
+```
 write
 boot-persist enable
+```
 
-CLI overview
+## CLI overview
 
-Run "help" at any time to list everything available in the current mode.
+Run `help` at any time to list everything available in the current mode. A few starting points:
 
-A few starting points:
+```
+switch              # L2 switch mode (VLANs, STP, port security, ...)
+switch-mls          # switch + L3 inter-VLAN routing
+router              # full router mode (OSPF, BGP, VRRP, NAT, VRF, ...)
+firewall            # ACLs, NAT, port blocking
 
-switch
+show running-config # everything currently configured, in one place
+show tech-support   # version + health + config + recent log, for bug reports
+dashboard           # live-refreshing status screen (Ctrl+C to exit)
+web                 # start the browser control panel
+```
 
-L2 switch mode — VLANs, STP, port security, and related features.
+Rescue access — a guaranteed plain Debian shell, independent of NCOS, no password — can be enabled from inside the CLI:
 
-switch-mls
-
-Switch + L3 inter-VLAN routing.
-
-router
-
-Full router mode — OSPF, BGP, VRRP, NAT, VRF, and related routing features.
-
-firewall
-
-ACLs, NAT, and port blocking.
-
-Useful operational commands include:
-
-show running-config
-show tech-support
-dashboard
-web
-
-"dashboard" opens the live status screen. Press "Ctrl+C" to exit.
-
-The "web" command starts the optional browser control panel when the Web UI is available.
-
-Rescue access
-
-A guaranteed plain Debian shell, independent of NCOS, can be enabled from inside the CLI:
-
+```
 console rescue enable
+```
 
-After enabling it, the rescue console is reachable via:
+Reachable afterward via `Ctrl+Alt+F9` on the physical console.
 
-Ctrl+Alt+F9
+## Security notes
 
-on the physical console.
+- Change the default password (`ncos`) immediately on any machine reachable over a network. SSH is on by default.
+- `console rescue enable` creates a passwordless local account reachable only from the physical console (SSH to it is locked). Anyone with physical keyboard access can reach it — a deliberate trade-off for guaranteed recovery, similar in spirit to GRUB rescue mode. Don't enable it on hardware you don't physically control.
+- This is beta software with direct control over firewall/NAT/routing on the host. Review `show running-config` and test ACL/firewall changes on a spare TTY/session before trusting them.
 
-Security notes
-
-- Change the default password ("ncos") immediately on any machine reachable over a network. SSH is enabled by default.
-- "console rescue enable" creates a passwordless local account reachable only from the physical console. SSH access to it is locked.
-- Anyone with physical keyboard access can reach the rescue environment after it is enabled. This is a deliberate recovery mechanism, similar in spirit to a GRUB rescue environment.
-- Do not enable rescue access on hardware you do not physically control.
-- NetCoreOS is beta software with direct control over firewall, NAT, and routing configuration on the host. Review "show running-config" and test ACL/firewall changes on a spare TTY/session before trusting them in production.
-
-Roadmap
+## Roadmap
 
 - [ ] Persistent config profiles / multi-boot config sets
-- [ ] Expanded "show tech-support" diagnostics
+- [ ] Expanded `show tech-support` diagnostics
 - [ ] More web UI coverage of CLI features
 - [ ] Community-contributed example configs (VXLAN fabric, BGP lab, etc.)
-- [ ] Improved installation and upgrade workflow
-- [ ] Additional hardware compatibility testing
 
-Have an idea or found a bug? Open an "issue" (../../issues).
+Have an idea or found a bug? Open an issue.
 
-Contributing
+## Contributing
 
-Issues and pull requests are welcome.
+This repo currently only hosts the ISO build/packaging tooling (`build-netcoreos-iso.sh`, `setup-persistence.sh`), not the NCOS CLI/web UI source, so contributions here are limited to that tooling and docs:
 
-1. Fork the repo and create a branch for your change.
-2. Test CLI changes on a spare TTY/VM before submitting — this software directly controls live networking configuration.
-3. Open a PR describing what changed and why.
+1. Fork the repo and create a branch for your change
+2. Test packaging/build script changes on a spare VM before submitting
+3. Open a PR describing what changed and why
 
-For bug reports, please attach the output of:
+For NCOS bug reports (CLI/web UI behavior), please attach the output of `show tech-support` — it saves a lot of back-and-forth — and open an issue even though the source isn't in this repo.
 
-show tech-support
+## License
 
-This provides useful version, health, configuration, and recent log information for troubleshooting.
-
-«Source distribution note: The NetCoreOS runtime CLI and optional Web UI are currently distributed as components of the bootable ISO rather than as standalone source files in this repository.»
-
-License
-
-See ""LICENSE"" (LICENSE) (MIT).
+See [LICENSE](LICENSE) (MIT).
 
 ---
 
